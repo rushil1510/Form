@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- NSCameraUsageDescription: REQUIRED by Apple for any app that accesses the camera.
+         If this key is missing, iOS will crash the app the moment it tries to use the camera.
+         This string is shown to the user in the permission dialog.
+         
+         The message explicitly calls out the privacy guarantee — users are increasingly
+         camera-permission-averse; a clear, honest reason increases grant rates. -->
+    <key>NSCameraUsageDescription</key>
+    <string>Form uses your camera to analyze exercise form in real time. Video never leaves your device.</string>
+
+    <!-- NSMicrophoneUsageDescription: Required if AVAudioSession is active.
+         Even though we don't record audio, AVAudioSession for speech playback
+         may trigger this check on some iOS versions. -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Form does not record audio. Microphone access may be requested by the system when configuring audio playback for coaching cues.</string>
+
+    <!-- UILaunchScreen: Modern alternative to LaunchScreen.storyboard.
+         A simple dark background matches our app's color scheme. -->
+    <key>UILaunchScreen</key>
+    <dict>
+        <key>UIColorName</key>
+        <string>AccentColor</string>
+    </dict>
+
+    <!-- UIRequiredDeviceCapabilities: Tells the App Store this app requires these features.
+         Users without a camera (unlikely on modern iOS devices but possible)
+         would be prevented from downloading an incompatible build. -->
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>video-camera</string>
+        <string>front-facing-camera</string>
+        <string>arm64</string>
+    </dict>
+
+    <!-- UISupportedInterfaceOrientations: Portrait only.
+         Exercise form analysis requires consistent orientation for
+         accurate joint coordinate interpretation. -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+
+    <!-- UIApplicationSupportsIndirectInputEvents: Recommended by Xcode for modern apps -->
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+
+    <!-- Minimum deployment target is enforced in the Xcode project settings,
+         but declaring it here helps code-signing tools. -->
+    <key>MinimumOSVersion</key>
+    <string>17.0</string>
+</dict>
+</plist>
