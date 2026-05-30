@@ -60,7 +60,8 @@ struct WorkoutView: View {
     @State private var cancellables = Set<AnyCancellable>()
 
     // MARK: - SessionStore (for saving completed sessions)
-    @StateObject private var store = SessionStore()
+    // Shared instance injected from FormApp — the same store History reads from.
+    @EnvironmentObject private var store: SessionStore
 
     // MARK: - View Body
 
@@ -185,7 +186,7 @@ struct WorkoutView: View {
     private func startWorkout() {
         guard let exercise = appState.selectedExercise else { return }
         analyzer = makeAnalyzer(for: exercise)
-        repCounter.reset()
+        repCounter.configure(for: exercise)
         appState.startSession(for: exercise)
         audioCue.enqueue(cue: "Starting \(exercise.displayName) analysis.")
     }

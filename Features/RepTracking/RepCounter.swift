@@ -40,8 +40,8 @@ final class RepCounter: ObservableObject {
 
     // MARK: - Configuration
 
-    private let lowThreshold: Double
-    private let highThreshold: Double
+    private var lowThreshold: Double
+    private var highThreshold: Double
 
     // MARK: - Internal State
 
@@ -76,6 +76,15 @@ final class RepCounter: ObservableObject {
         let rawAngle = GeometryHelpers.angle(a: a, b: b, c: c)
         let smoothedAngle = smooth(newAngle: rawAngle)
         updateStateMachine(angle: smoothedAngle)
+    }
+
+    /// Reconfigures the counter for a specific exercise's range of motion.
+    /// Resetting here avoids carrying smoothing/state across exercises.
+    func configure(for exercise: ExerciseType) {
+        let thresholds = exercise.repThresholds
+        lowThreshold = thresholds.low
+        highThreshold = thresholds.high
+        reset()
     }
 
     /// Resets the counter for a new set or session.

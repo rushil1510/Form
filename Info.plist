@@ -33,7 +33,7 @@
         <string>video-camera</string>
         <string>front-facing-camera</string>
         <string>arm64</string>
-    </dict>
+    </array>
 
     <!-- UISupportedInterfaceOrientations: Portrait only.
          Exercise form analysis requires consistent orientation for

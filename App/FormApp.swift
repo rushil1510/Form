@@ -26,6 +26,13 @@ struct FormApp: App {
     // session is in progress, etc. Child views observe it via @EnvironmentObject.
     @StateObject private var appState = AppState()
 
+    // Single shared session store for the whole app. Created once here and
+    // injected into the environment so the workout screen (which saves sessions)
+    // and the history screen (which lists them) read/write the SAME instance —
+    // otherwise a session recorded in WorkoutView wouldn't appear in History
+    // until the next launch.
+    @StateObject private var sessionStore = SessionStore()
+
     // MARK: - Scene Body
 
     // `body` returns a Scene — in iOS apps this is almost always a WindowGroup,
@@ -40,6 +47,7 @@ struct FormApp: App {
             // intermediate view (which SwiftUI calls "prop drilling" in React terms).
             ContentView()
                 .environmentObject(appState)
+                .environmentObject(sessionStore)
         }
     }
 }

@@ -48,30 +48,26 @@ final class SessionStore: ObservableObject {
     /// FileManager.default.urls(for:in:) returns the app's sandboxed directories.
     /// .documentDirectory is the standard place for user data files.
     /// .userDomainMask means "this user on this device" (always correct for iOS apps).
-    private let storageURL: URL = {
-        // Step 1: Get the Documents directory path
-        let documentsDir = FileManager.default.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first! // Force-unwrap is safe here — Documents always exists on iOS
-
-        // Step 2: Append our filename to create the full path
-        // Result: .../Documents/form_sessions.json
-        return documentsDir.appendingPathComponent("form_sessions.json")
-    }()
+    private let storageURL: URL
 
     // MARK: - Background Queue
 
     /// All disk I/O happens on this queue. We use a serial queue (not concurrent)
     /// to prevent write-after-write races if two sessions complete rapidly.
-    private let ioQueue = DispatchQueue(
-        label: "com.form.sessionStore.io",
-        qos: .utility // Lower priority than UI — disk I/O doesn't need to be fast
-    )
+    private let ioQueue: DispatchQueue
 
     // MARK: - Initializer
 
-    init() {
+    init(
+        storageURL: URL? = nil,
+        ioQueue: DispatchQueue = DispatchQueue(
+            label: "com.form.sessionStore.io",
+            qos: .utility
+        )
+    ) {
+        self.storageURL = storageURL ?? Self.defaultStorageURL
+        self.ioQueue = ioQueue
+
         // Load existing sessions from disk when the store is created.
         // SessionStore is typically created once at app launch (in SessionListView).
         load()
@@ -87,16 +83,22 @@ final class SessionStore: ObservableObject {
     /// updates immediately on the main thread for responsive UI — the disk write
     /// follows asynchronously.
     func save(session: Session) {
+        let updatedSessions = [session] + sessions
+
         // Update in-memory state immediately (optimistic update)
         // This way the UI reflects the new session before the disk write completes.
-        DispatchQueue.main.async {
-            self.sessions.insert(session, at: 0) // Newest first
+        if Thread.isMainThread {
+            sessions = updatedSessions
+        } else {
+            DispatchQueue.main.sync {
+                self.sessions = updatedSessions
+            }
         }
 
         // Write to disk on background queue
         ioQueue.async { [weak self] in
             guard let self else { return }
-            self.persist()
+            self.persist(sessions: updatedSessions)
         }
     }
 
@@ -104,7 +106,8 @@ final class SessionStore: ObservableObject {
     /// - Parameter offsets: IndexSet from the List's onDelete callback.
     func delete(at offsets: IndexSet) {
         sessions.remove(atOffsets: offsets)
-        ioQueue.async { [weak self] in self?.persist() }
+        let updatedSessions = sessions
+        ioQueue.async { [weak self] in self?.persist(sessions: updatedSessions) }
     }
 
     // MARK: - Private: Persist
@@ -112,7 +115,7 @@ final class SessionStore: ObservableObject {
     /// Encodes the current sessions array to JSON and writes it to disk.
     ///
     /// Called on ioQueue — never call from the main thread.
-    private func persist() {
+    private func persist(sessions: [Session]) {
         do {
             // Step 1: Create an encoder
             let encoder = JSONEncoder()
@@ -183,4 +186,12 @@ final class SessionStore: ObservableObject {
             }
         }
     }
+
+    private static let defaultStorageURL: URL = {
+        let documentsDir = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first!
+        return documentsDir.appendingPathComponent("form_sessions.json")
+    }()
 }

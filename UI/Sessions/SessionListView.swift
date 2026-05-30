@@ -9,7 +9,8 @@ import SwiftUI
 /// Tapping a session navigates to SessionDetailView for rep-by-rep breakdown.
 struct SessionListView: View {
 
-    @StateObject private var store = SessionStore()
+    // Shared instance injected from FormApp — the same store WorkoutView saves to.
+    @EnvironmentObject private var store: SessionStore
 
     var body: some View {
         NavigationStack {
