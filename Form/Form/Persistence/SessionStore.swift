@@ -105,7 +105,11 @@ final class SessionStore: ObservableObject {
     /// Deletes sessions at the given offsets (from SwiftUI's onDelete modifier).
     /// - Parameter offsets: IndexSet from the List's onDelete callback.
     func delete(at offsets: IndexSet) {
-        sessions.remove(atOffsets: offsets)
+        // Remove highest indices first so earlier indices stay valid. (Avoids
+        // depending on SwiftUI's `remove(atOffsets:)` from the persistence layer.)
+        for index in offsets.sorted(by: >) {
+            sessions.remove(at: index)
+        }
         let updatedSessions = sessions
         ioQueue.async { [weak self] in self?.persist(sessions: updatedSessions) }
     }

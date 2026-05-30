@@ -95,10 +95,9 @@ final class PoseDetector: ObservableObject {
     // MARK: - Initializer
 
     init() {
-        // Configure the body pose request.
-        // maximumObservationCount = 1 because we expect a single user in frame.
-        // Setting this avoids wasted work detecting a second or third person.
-        bodyPoseRequest.maximumObservationCount = 1
+        // VNDetectHumanBodyPoseRequest has no maximum-observation knob; it may
+        // return several bodies. We expect a single user and just take the first
+        // result (see runPoseDetection), which is the relevant one in-frame.
     }
 
     // MARK: - Frame Processing
