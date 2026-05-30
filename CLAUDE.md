@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & test
 
-There is **no `.xcodeproj` committed**. The app target must be built from Xcode (create an App project and add the source folders, or open the folder as described in `README.md`); use ⌘R to run and ⌘U for the in-Xcode test target. The Simulator has no camera feed, so pose detection only works on a physical iOS 17+ device.
+There is **no `.xcodeproj` committed**. The app target must be built from Xcode by following `XCODE_SETUP.md`; use ⌘R to run on a device. The Simulator has no useful camera feed, so pose detection only works on a physical iOS 17+ device.
 
 For fast, headless iteration on the **pure logic** (no Xcode, no device), a SwiftPM harness is checked in (`Package.swift` + `ValidationSupport/`). It compiles only the deterministic files and runs `FormTests/` from the terminal:
 
@@ -21,7 +21,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter Rep
 
 If `swift test` errors with a `llbuild` symbol-not-found dyld crash, the `DEVELOPER_DIR` override is missing — the system SwiftPM is broken and only Xcode's works.
 
-The harness is **not** the app build. `Package.swift` deliberately *excludes* `Features/Camera`, `Features/PoseDetection`, `Features/AudioCues`, `UI/`, and `App/FormApp.swift` (anything needing UIKit/AVFoundation/SwiftUI hardware), and includes only `Models/`, `Features/FormAnalysis`, `Features/RepTracking`, `Persistence/`, `App/AppState.swift`. `ValidationSupport/JointMap.swift` is a harness-only shim that re-declares the `JointMap` typealias (real one lives in `PoseDetector.swift`) plus a `remove(atOffsets:)` extension (real one comes from SwiftUI). **Keep that shim's `JointMap` in sync with `PoseDetector.swift`.** When you add a new logic file that tests touch, add it to `sources:` in `Package.swift`.
+The harness is **not** the app build. `Package.swift` deliberately *excludes* `Form/Form/Features/Camera`, `Form/Form/Features/PoseDetection`, `Form/Form/Features/AudioCues`, `Form/Form/UI`, and `Form/Form/App/FormApp.swift` (anything needing UIKit/AVFoundation/SwiftUI hardware), and includes only `Form/Form/Models`, `Form/Form/Features/FormAnalysis`, `Form/Form/Features/RepTracking`, `Form/Form/Persistence`, `Form/Form/App/AppState.swift`, and `ValidationSupport`. `ValidationSupport/JointMap.swift` is a harness-only shim that re-declares the `JointMap` typealias (real one lives in `PoseDetector.swift`) plus a `remove(atOffsets:)` extension (real one comes from SwiftUI). **Keep that shim's `JointMap` in sync with `PoseDetector.swift`.** When you add a new logic file that tests touch, add it to `sources:` in `Package.swift`.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ Camera ─CMSampleBuffer→ PoseDetector ─JointMap→ ┬─ SkeletonOverlayVi
 
 **The hardware boundary is the key design line.** `PoseDetector`/`CameraManager` are thin and hard to test (need a device); all decision logic lives in plain value types that take a `JointMap` (`[VNHumanBodyPoseObservation.JointName: CGPoint]`, normalized 0–1, **top-left origin** — `PoseDetector` flips Vision's bottom-left Y) and are trivially testable. When adding logic, keep it on the testable side of this line.
 
-**`ExerciseType` is the central config hub** (`Features/FormAnalysis/FormAnalyzer.swift`). Each case carries its own `repDetectionJoint` (which 3 joints define the tracked angle) and `repThresholds` (low/high angle gates). Adding an exercise = add a case here, add a `FormAnalyzing` struct, and register it in `makeAnalyzer(for:)` — `WorkoutView` and `RepCounter` need no changes (Strategy + Factory).
+**`ExerciseType` is the central config hub** (`Form/Form/Features/FormAnalysis/FormAnalyzer.swift`). Each case carries its own `repDetectionJoint` (which 3 joints define the tracked angle) and `repThresholds` (low/high angle gates). Adding an exercise = add a case here, add a `FormAnalyzing` struct, and register it in `makeAnalyzer(for:)` — `WorkoutView` and `RepCounter` need no changes (Strategy + Factory).
 
 **`FormAnalyzer` is per-frame and stateless-ish; `RepCounter` is temporal.** Analyzers return `.good / .warning(msg) / .error(msg)` from a single frame's joints (pure trig vs. thresholds — no ML). `RepCounter` is a 3-state FSM (idle → descending → ascending → rep) over a smoothed angle time-series; `configure(for:)` swaps thresholds per exercise and resets. Analyzer **status varies**: `SquatAnalyzer`, `LatPulldownAnalyzer`, `DumbbellBenchAnalyzer` have real rules; `DeadliftAnalyzer` and `BenchAnalyzer` are stubs that always return `.good` (so for those, only rep counting is meaningful today).
 

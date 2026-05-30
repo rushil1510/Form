@@ -1,10 +1,12 @@
 # Xcode Setup — First-Time Guide (novice)
 
-Goal: create an Xcode app project that builds the existing source files and runs on your iPhone.
-Do NOT open the `Form` folder directly in Xcode (it has a `Package.swift` → opens as a package, not an app). Create a fresh project and add the files.
+Goal: create a local Xcode app project that builds the checked-in source files and runs on your iPhone.
+Do NOT open the repo root directly in Xcode (it has a `Package.swift` → opens as a test harness package, not the iOS app). Create a fresh app project and point it at the existing source.
 
-Repo root (call it REPO):
-`/Users/rushilmital/Documents/VibeCoding/Form/Form`
+Repo root (call it REPO)
+
+Checked-in app source root:
+`REPO/Form/Form`
 
 ---
 
@@ -25,7 +27,8 @@ Repo root (call it REPO):
    - **Storage:** None
    - **Uncheck** "Include Tests" (we have our own terminal test harness)
 4. Next. In the save dialog, navigate **into the REPO folder** and click **Create**.
-   - This makes `REPO/Form/Form.xcodeproj` + a generated `REPO/Form/Form/` group. Normal. (`.xcodeproj` is gitignored.)
+   - This makes a local `REPO/Form/Form.xcodeproj`. Normal. (`.xcodeproj` is gitignored.)
+   - The checkout already contains source files under `REPO/Form/Form`; do not delete or replace that folder.
    - If Xcode offers to create a git repo, **uncheck it** (you already have one).
 
 ## 2. Delete the 2 generated files that collide with the repo
@@ -37,7 +40,7 @@ In the left sidebar (Project Navigator, ⌘1), inside the yellow **Form** group 
 
 ## 3. Add the real source folders (by reference)
 1. Right-click the yellow **Form** group → **Add Files to "Form"…**
-2. Navigate to REPO and select these **5 folders** (⌘-click to multi-select):
+2. Navigate to `REPO/Form/Form` and select these **5 folders** (⌘-click to multi-select):
    `App`  `Models`  `Features`  `Persistence`  `UI`
 3. At the bottom of the dialog set:
    - **Copy items if needed:** ❌ UNCHECK (files already live in the repo)
@@ -45,7 +48,7 @@ In the left sidebar (Project Navigator, ⌘1), inside the yellow **Form** group 
    - **Add to targets:** ☑ Form (checked)
 4. Click **Add**.
 
-Do **not** add: `Package.swift`, `ValidationSupport/`, `FormTests/`, the `.md` files, `.build/`, `Info.plist` (handled in step 4).
+Do **not** add: `Package.swift`, `ValidationSupport/`, `FormTests/`, `docs/`, the `.md` files, `.build/`, `Info.plist` (handled in step 4).
 
 Sanity check: the navigator should now show App, Models, Features, Persistence, UI groups with the Swift files inside.
 
@@ -81,7 +84,7 @@ Target → **General** tab:
 Free-account note: the app expires after ~7 days; just ⌘R again from Xcode to reinstall. Fine for a demo.
 
 ## 9. Demo
-Follow `DEMO.md` to trigger each form cue and screen-record.
+Follow `DEMO.md` to trigger each form cue and screen-record. Use `docs/DEVELOPING.md` and `docs/ARCHITECTURE.md` when changing the implementation.
 
 ---
 
