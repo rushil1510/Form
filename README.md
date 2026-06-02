@@ -47,9 +47,11 @@ Form/
 │   │   ├── FormAnalysis/    Exercise analyzers and rule engine
 │   │   ├── PoseDetection/   Apple Vision pose wrapper
 │   │   └── RepTracking/     Rep-counting finite-state machine
-│   ├── Models/              Session, rep, and aggregate score models
-│   ├── Persistence/         JSON session storage
+│   ├── Models/              Session, rep, score, and voice-preference models
+│   ├── Persistence/         JSON session storage + UserDefaults settings store
 │   └── UI/                  SwiftUI screens and drawing components
+│       ├── Settings/        Voice + exercise-selection preferences screen
+│       └── Workout/         Live camera screen, HUD, exercise selection
 ├── FormTests/               Headless logic tests
 ├── ValidationSupport/       SwiftPM-only shims for testability
 ├── Package.swift            SwiftPM harness for pure logic tests
@@ -83,7 +85,10 @@ See `docs/ARCHITECTURE.md` for the full set of diagrams.
 | Skeleton overlay | Done | SwiftUI `Canvas` draws joints and bones over the preview. |
 | Rep counting | Done | Per-exercise thresholds, smoothing, and FSM transitions. |
 | Persistence | Done | Sessions are stored as local JSON in the app sandbox. |
-| Audio cues | Done | Deduplicated, rate-limited on-device speech. |
+| Audio cues | Done | Deduplicated, rate-limited on-device speech with user-selectable voice, pitch, and rate. |
+| Settings | Done | Voice preferences and exercise-selection style, persisted via `UserDefaults` (`SettingsStore`). |
+| Exercise selection | Done | Two A/B-testable UIs: a dedicated selection screen and an inline picker over the camera. |
+| Camera positioning | Done | Per-exercise framing guidance (`ExerciseType.cameraSetup`) shown before each set. |
 | Squat rules | Partial | Knee cave and shallow depth heuristics exist. |
 | Lat pulldown rules | Partial | ROM, shrug, grip asymmetry, and elbow flare heuristics exist. |
 | Dumbbell bench rules | Partial | Asymmetry, ROM, wrist drift, and elbow tuck heuristics exist. |

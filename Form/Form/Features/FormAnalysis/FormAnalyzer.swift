@@ -30,6 +30,18 @@
 import Foundation
 import Vision // For VNHumanBodyPoseObservation.JointName
 
+// MARK: - ExerciseCameraSetup
+
+/// Guidance on how the user should position their phone for a given exercise.
+/// Shown as a "positioning" tip before a set so the joints the analyzer relies on
+/// are actually visible to the camera.
+struct ExerciseCameraSetup: Equatable {
+    /// Short label for the framing, e.g. "Side-on" or "Face-on".
+    let placement: String
+    /// One-sentence instruction describing where to place the phone.
+    let instruction: String
+}
+
 // MARK: - ExerciseType
 
 /// The set of exercises the app can analyze.
@@ -52,6 +64,54 @@ enum ExerciseType: String, Codable, CaseIterable, Identifiable {
 
     /// Human-readable display name used in the UI.
     var displayName: String { rawValue }
+
+    /// SF Symbol used to represent this exercise in selection UI.
+    /// All names are valid on iOS 17+.
+    var symbolName: String {
+        switch self {
+        case .squat:         return "figure.strengthtraining.functional"
+        case .deadlift:      return "figure.strengthtraining.traditional"
+        case .bench:         return "dumbbell.fill"
+        case .latPulldown:   return "figure.cross.training"
+        case .dumbbellBench: return "dumbbell.fill"
+        }
+    }
+
+    /// Where to place the phone so the joints each analyzer needs are visible.
+    ///
+    /// This drives the "positioning" tip shown before a set starts. Pose detection
+    /// is only as good as the framing: e.g. DumbbellBenchAnalyzer's wrist-alignment
+    /// rule needs a side-on view, while LatPulldownAnalyzer assumes a face-on view
+    /// (see the per-analyzer doc comments below).
+    var cameraSetup: ExerciseCameraSetup {
+        switch self {
+        case .squat:
+            return ExerciseCameraSetup(
+                placement: "Face-on",
+                instruction: "Stand facing the camera, a few steps back so your whole body — hips, knees and ankles — stays in frame."
+            )
+        case .deadlift:
+            return ExerciseCameraSetup(
+                placement: "Side-on",
+                instruction: "Place the phone to your side at hip height so it sees your back, hips and knees in profile."
+            )
+        case .bench:
+            return ExerciseCameraSetup(
+                placement: "Side-on",
+                instruction: "Prop the phone at the end of the bench, shooting along your side so it sees your shoulder, elbow and wrist."
+            )
+        case .latPulldown:
+            return ExerciseCameraSetup(
+                placement: "Face-on",
+                instruction: "Set the phone in front of the machine at chest height so it sees both shoulders, elbows and wrists head-on."
+            )
+        case .dumbbellBench:
+            return ExerciseCameraSetup(
+                placement: "Side-on",
+                instruction: "Prop the phone at the end of the bench, shooting from your side for the clearest view of elbow angle and wrist alignment."
+            )
+        }
+    }
 
     /// The three joints that define the primary angle used by RepCounter.
     /// Returns (pointA, vertex, pointC) — RepCounter calls GeometryHelpers.angle(a:b:c:)

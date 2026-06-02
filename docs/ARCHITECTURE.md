@@ -112,10 +112,15 @@ sequenceDiagram
 graph TD
     FormApp["FormApp"] --> AppState["AppState"]
     FormApp --> SessionStore["SessionStore"]
+    FormApp --> SettingsStore["SettingsStore"]
     FormApp --> ContentView["ContentView"]
 
     ContentView --> WorkoutView["WorkoutView"]
     ContentView --> SessionListView["SessionListView"]
+    ContentView --> SettingsView["SettingsView"]
+
+    SettingsView --> SettingsStore
+    SettingsView --> VoicePreferences["VoicePreferences"]
 
     WorkoutView --> CameraManager["CameraManager"]
     WorkoutView --> PoseDetector["PoseDetector"]
@@ -124,8 +129,10 @@ graph TD
     WorkoutView --> CameraPreviewView["CameraPreviewView"]
     WorkoutView --> SkeletonOverlayView["SkeletonOverlayView"]
     WorkoutView --> WorkoutHUDView["WorkoutHUDView"]
+    WorkoutView --> ExerciseSelectionView["ExerciseSelectionView"]
     WorkoutView --> FeedbackBannerView["FeedbackBannerView"]
     WorkoutView --> makeAnalyzer["makeAnalyzer(for:)"]
+    WorkoutView --> SettingsStore
 
     makeAnalyzer --> SquatAnalyzer["SquatAnalyzer"]
     makeAnalyzer --> DeadliftAnalyzer["DeadliftAnalyzer"]
@@ -140,7 +147,26 @@ graph TD
     Session --> FormScore["FormScore"]
 ```
 
-`WorkoutView` owns the live-session objects with `@StateObject`. `FormApp` owns shared app-level objects with `@StateObject` and injects them through the SwiftUI environment.
+`WorkoutView` owns the live-session objects with `@StateObject`. `FormApp` owns shared app-level objects (`AppState`, `SessionStore`, `SettingsStore`) with `@StateObject` and injects them through the SwiftUI environment.
+
+## User Preferences
+
+```mermaid
+flowchart LR
+    SettingsView["SettingsView"] -->|edits| SettingsStore["SettingsStore<br/>@Published, UserDefaults-backed"]
+    SettingsStore -->|VoicePreferences| WorkoutView["WorkoutView"]
+    WorkoutView -->|apply(_:)| AudioCueEngine["AudioCueEngine"]
+    SettingsStore -->|ExerciseSelectionStyle| WorkoutView
+    WorkoutView --> Dedicated["ExerciseSelectionView<br/>(dedicated screen)"]
+    WorkoutView --> Inline["inline HUD picker"]
+```
+
+`SettingsStore` persists two preferences to `UserDefaults` and writes through on every change (via `didSet`):
+
+- **`VoicePreferences`** — a pure, `Codable` value type (`voiceIdentifier`, `pitch`, `rate`) that clamps to `AVSpeechUtterance`'s valid ranges on both init and decode. `WorkoutView` pushes it into `AudioCueEngine` via `apply(_:)` on appear and whenever it changes, so spoken cues pick up the user's chosen voice without restarting a session. The voice is referenced by identifier `String` (not an `AVSpeechSynthesisVoice`) so the model stays on the testable side of the hardware boundary.
+- **`ExerciseSelectionStyle`** — an A/B toggle between a dedicated selection screen (`ExerciseSelectionView`, shown over the camera until an exercise is chosen) and an inline picker in the workout HUD. Both variants surface `ExerciseType.cameraSetup` as a positioning tip before the set starts.
+
+The backing `UserDefaults` is injectable so the headless harness can assert persistence against an isolated suite (`SettingsTests`).
 
 ## Data Model
 

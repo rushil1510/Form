@@ -86,6 +86,14 @@ Free-account note: the app expires after ~7 days; just ⌘R again from Xcode to 
 ## 9. Demo
 Follow `DEMO.md` to trigger each form cue and screen-record. Use `docs/DEVELOPING.md` and `docs/ARCHITECTURE.md` when changing the implementation.
 
+## 10. Adding new source files later
+Step 3 added the folders as **groups** (static references), so new `.swift` files added to the repo afterwards are NOT automatically in your project. When you pull changes that add files (or create one yourself):
+1. Right-click the matching group (e.g. `Models`, `Persistence`, or the relevant `UI` subgroup) → **Add Files to "Form"…**
+2. Select the new file(s). **Copy items if needed:** ❌ UNCHECK. **Add to targets:** ☑ Form.
+3. ⌘R.
+
+Tell-tale sign you missed one: `swift test` passes, but the device build fails with **"Cannot find type 'X' in scope"**.
+
 ---
 
 ## Troubleshooting (error → fix)

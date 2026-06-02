@@ -33,6 +33,11 @@ struct FormApp: App {
     // until the next launch.
     @StateObject private var sessionStore = SessionStore()
 
+    // App-wide user preferences (coaching voice, exercise-selection UI). Created
+    // once here and injected so the Settings screen, WorkoutView (which applies the
+    // voice and reads the selection style) all share one instance backed by UserDefaults.
+    @StateObject private var settings = SettingsStore()
+
     // MARK: - Scene Body
 
     // `body` returns a Scene — in iOS apps this is almost always a WindowGroup,
@@ -48,6 +53,7 @@ struct FormApp: App {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(sessionStore)
+                .environmentObject(settings)
         }
     }
 }
@@ -77,6 +83,12 @@ struct ContentView: View {
             SessionListView()
                 .tabItem {
                     Label("History", systemImage: "clock.arrow.circlepath")
+                }
+
+            // Tab 3: Voice + exercise-selection preferences
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
                 }
         }
         // Accent color applied globally — SF Symbols and interactive elements

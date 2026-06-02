@@ -61,6 +61,11 @@ final class AudioCueEngine: NSObject, ObservableObject {
     /// 3 seconds is a good starting point — too short causes audio fatigue.
     private let minimumCueGapSeconds: TimeInterval = 3.0
 
+    /// User-configured voice/pitch/rate. Read on `audioQueue` when building each
+    /// utterance; updated via `apply(_:)` from the Settings screen. Starts at the
+    /// default character (locale voice, slightly low and slow).
+    private var preferences: VoicePreferences = .default
+
     // MARK: - Initializer
 
     override init() {
@@ -114,6 +119,15 @@ final class AudioCueEngine: NSObject, ObservableObject {
         }
     }
 
+    /// Updates the voice character used for subsequent cues.
+    /// Apply the change on the audio queue so it can't race with utterance building.
+    /// Cues already queued or speaking are unaffected; the next one uses the new voice.
+    func apply(_ preferences: VoicePreferences) {
+        audioQueue.async { [weak self] in
+            self?.preferences = preferences
+        }
+    }
+
     /// Immediately stops all speech and clears the queue.
     /// Call this when a session ends so no coaching cue fires after the user stops.
     func stopAll() {
@@ -149,18 +163,23 @@ final class AudioCueEngine: NSObject, ObservableObject {
         currentCue = nextCue
 
         // AVSpeechUtterance wraps a string with voice/rate/pitch settings.
+        // All three come from the user's VoicePreferences (set in the Settings screen).
         let utterance = AVSpeechUtterance(string: nextCue)
 
         // Rate: 0.0 (very slow) to 1.0 (very fast). Default ~0.5.
-        // Slightly below default so instructions are clear over gym ambient noise.
-        utterance.rate = 0.45
+        utterance.rate = preferences.rate
 
-        // Voice: use the system default for the user's locale.
-        // In a future version, allow the user to select a voice.
-        utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
+        // pitchMultiplier: 1.0 = normal. Lower feels deeper / more authoritative.
+        utterance.pitchMultiplier = preferences.pitch
 
-        // pitchMultiplier: 1.0 = normal. Slightly lower feels more authoritative.
-        utterance.pitchMultiplier = 0.9
+        // Voice: the user's chosen voice by identifier, falling back to the locale
+        // default if none is set or the chosen voice isn't installed on this device.
+        if let id = preferences.voiceIdentifier,
+           let chosen = AVSpeechSynthesisVoice(identifier: id) {
+            utterance.voice = chosen
+        } else {
+            utterance.voice = AVSpeechSynthesisVoice(language: Locale.current.identifier)
+        }
 
         // speakUtterance must be called on the main thread per Apple docs
         DispatchQueue.main.async {

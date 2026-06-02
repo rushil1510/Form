@@ -63,6 +63,18 @@ struct WorkoutView: View {
     // Shared instance injected from FormApp — the same store History reads from.
     @EnvironmentObject private var store: SessionStore
 
+    // MARK: - SettingsStore (voice + exercise-selection UI preferences)
+    // Shared instance injected from FormApp.
+    @EnvironmentObject private var settings: SettingsStore
+
+    /// True when the dedicated exercise-selection screen should cover the camera:
+    /// the user picked that variant, hasn't chosen an exercise, and isn't mid-set.
+    private var needsDedicatedSelection: Bool {
+        settings.exerciseSelectionStyle == .dedicatedScreen
+            && appState.selectedExercise == nil
+            && !appState.isSessionActive
+    }
+
     // MARK: - View Body
 
     var body: some View {
@@ -85,24 +97,45 @@ struct WorkoutView: View {
                     .ignoresSafeArea()
 
                 // ── Layer 4: HUD elements ──────────────────────────────────────
-                VStack {
+                VStack(spacing: 12) {
                     // Form feedback banner at the top
                     FeedbackBannerView(feedback: appState.latestFeedback)
                         .padding(.top, 60) // Below the notch/dynamic island
 
                     Spacer()
 
+                    // Camera-positioning tip — shown once an exercise is chosen but
+                    // before the set starts, in BOTH selection variants.
+                    if !appState.isSessionActive, let exercise = appState.selectedExercise {
+                        CameraSetupCard(exercise: exercise)
+                            .padding(.horizontal, 16)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+
                     // Workout controls at the bottom
                     WorkoutHUDView(
                         repCount: appState.liveRepCount,
                         isActive: appState.isSessionActive,
                         selectedExercise: $appState.selectedExercise,
+                        showInlinePicker: settings.exerciseSelectionStyle == .inlinePicker,
                         onStart: startWorkout,
-                        onStop: stopWorkout
+                        onStop: stopWorkout,
+                        onChangeExercise: { appState.selectedExercise = nil }
                     )
                     .padding(.bottom, 40) // Above home indicator
                 }
+                .animation(.spring(duration: 0.3), value: appState.selectedExercise)
+
+                // ── Layer 5: Dedicated exercise-selection screen (A/B variant) ──
+                // Covers the camera until an exercise is chosen.
+                if needsDedicatedSelection {
+                    ExerciseSelectionView { exercise in
+                        appState.selectedExercise = exercise
+                    }
+                    .transition(.opacity)
+                }
             }
+            .animation(.easeInOut(duration: 0.25), value: needsDedicatedSelection)
             .navigationTitle("Form")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.black.opacity(0.5), for: .navigationBar)
@@ -111,7 +144,13 @@ struct WorkoutView: View {
         // MARK: - Lifecycle
         .onAppear {
             setupPipeline()
+            audioCue.apply(settings.voice)
             cameraManager.startSession()
+        }
+        // Keep the audio engine in sync if the user edits voice settings while
+        // this view is alive (e.g. switches tabs to Settings and back).
+        .onChange(of: settings.voice) { _, newValue in
+            audioCue.apply(newValue)
         }
         .onDisappear {
             cameraManager.stopSession()
@@ -262,8 +301,13 @@ struct WorkoutHUDView: View {
     let repCount: Int
     let isActive: Bool
     @Binding var selectedExercise: ExerciseType?
+    /// True for the inline-picker A/B variant. False when the dedicated selection
+    /// screen owns exercise choice (the HUD then just shows the current pick).
+    let showInlinePicker: Bool
     let onStart: () -> Void
     let onStop: () -> Void
+    /// Clears the current selection so the user can pick a different exercise.
+    let onChangeExercise: () -> Void
 
     var body: some View {
         VStack(spacing: 16) {
@@ -279,16 +323,38 @@ struct WorkoutHUDView: View {
                     .tracking(4)
             }
 
-            // Exercise selector (shown when not active)
+            // Exercise selection (only before a set starts)
             if !isActive {
-                Picker("Exercise", selection: $selectedExercise) {
-                    Text("Select Exercise").tag(Optional<ExerciseType>.none)
-                    ForEach(ExerciseType.allCases) { exercise in
-                        Text(exercise.displayName).tag(Optional(exercise))
+                if showInlinePicker {
+                    // ── A/B variant: inline scrollable cards over the camera ──
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(ExerciseType.allCases) { exercise in
+                                ExerciseChip(
+                                    exercise: exercise,
+                                    isSelected: exercise == selectedExercise
+                                ) {
+                                    selectedExercise = exercise
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
                     }
+                } else if let exercise = selectedExercise {
+                    // ── Dedicated-screen variant: show the pick + a way back ──
+                    HStack(spacing: 12) {
+                        Image(systemName: exercise.symbolName)
+                            .foregroundColor(.orange)
+                        Text(exercise.displayName)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        Spacer()
+                        Button("Change", action: onChangeExercise)
+                            .font(.subheadline.weight(.semibold))
+                            .tint(.orange)
+                    }
+                    .padding(.horizontal)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
             }
 
             // Start / Stop button
@@ -311,5 +377,61 @@ struct WorkoutHUDView: View {
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - Exercise Chip (inline picker variant)
+
+/// A compact, selectable exercise card used in the inline HUD picker.
+struct ExerciseChip: View {
+    let exercise: ExerciseType
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 6) {
+                Image(systemName: exercise.symbolName)
+                    .font(.title3)
+                Text(exercise.displayName)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+            }
+            .foregroundColor(isSelected ? .black : .white)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .background(isSelected ? Color.orange : Color.white.opacity(0.15))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+    }
+}
+
+// MARK: - Camera Setup Card (positioning guidance)
+
+/// Shows where to place the phone for the selected exercise before a set starts.
+/// Backed by ExerciseType.cameraSetup so each exercise gets framing that matches
+/// the joints its analyzer relies on.
+struct CameraSetupCard: View {
+    let exercise: ExerciseType
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "camera.viewfinder")
+                .font(.title2)
+                .foregroundColor(.orange)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(exercise.cameraSetup.placement) view")
+                    .font(.subheadline.bold())
+                    .foregroundColor(.white)
+                Text(exercise.cameraSetup.instruction)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
