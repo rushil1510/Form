@@ -15,6 +15,7 @@
 
 import SwiftUI
 import AVFoundation
+import Combine
 
 // MARK: - SettingsView
 
@@ -142,6 +143,11 @@ struct SettingsView: View {
 /// the Settings screen. Kept separate from AudioCueEngine so previewing never touches
 /// the workout cue queue or its rate-limiting state.
 final class VoicePreviewer: NSObject, ObservableObject {
+
+    // VoicePreviewer has no @Published state (nothing observes it; @StateObject just
+    // keeps it alive across view updates), so the objectWillChange publisher can't be
+    // synthesized — declare it explicitly to satisfy ObservableObject.
+    let objectWillChange = ObservableObjectPublisher()
 
     private let synthesizer = AVSpeechSynthesizer()
 
